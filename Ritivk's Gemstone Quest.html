@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ritvik's Gemstone Quest</title>
+  <style>
+    body {
+      margin: 0;
+      background: #102018;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    #topBar {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      width: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #startBtn, #muteBtn {
+      pointer-events: auto;
+      padding: 10px 16px;
+      margin: 4px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #startBtn {
+      background: gold;
+    }
+
+    #muteBtn {
+      background: white;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: linear-gradient(#66b3ff, #89d66b);
+      border: 4px solid #222;
+    }
+  </style>
+</head>
+<body>
+  <div id="topBar">
+    <button id="startBtn">Click to Start Music + Game</button>
+    <button id="muteBtn">Mute</button>
+    <div>Use arrow keys or WASD to move. Collect the gold gemstone to level up.</div>
+  </div>
+
+  <canvas id="game" width="800" height="500"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let player = { x: 60, y: 250, size: 30, speed: 4 };
+let gem = { x: 700, y: 250, size: 24 };
+let level = 1;
+let keys = {};
+let enemies = [];
+let musicStarted = false;
+let muted = false;
+
+// LEVELS
+function setupLevel() {
+  enemies = [];
+  for (let i = 0; i < level + 1; i++) {
+    enemies.push({
+      x: 180 + i * 95,
+      y: 120 + (i % 3) * 90,
+      size: 25,
+      dx: 1.2 + level * 0.25 + i * 0.1,
+      dy: 1 + level * 0.18
+    });
+  }
+  player.x = 60;
+  player.y = 250;
+  gem.x = 700;
+  gem.y = 80 + (level * 45) % 340;
+}
+
+setupLevel();
+
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+function update() {
+  if (keys["arrowright"] || keys["d"]) player.x += player.speed;
+  if (keys["arrowleft"] || keys["a"]) player.x -= player.speed;
+  if (keys["arrowup"] || keys["w"]) player.y -= player.speed;
+  if (keys["arrowdown"] || keys["s"]) player.y += player.speed;
+
+  player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
+  player.y = Math.max(0, Math.min(canvas.height - player.size, player.y));
+
+  enemies.forEach(enemy => {
+    enemy.x += enemy.dx;
+    enemy.y += enemy.dy;
+    if (enemy.x < 0 || enemy.x > canvas.width - enemy.size) enemy.dx *= -1;
+    if (enemy.y < 60 || enemy.y > canvas.height - enemy.size) enemy.dy *= -1;
+
+    if (collide(player, enemy)) {
+      player.x = 60;
+      player.y = 250;
+    }
+  });
+
+  if (collide(player, gem)) {
+    level++;
+    setupLevel();
+  }
+}
+
+function collide(a, b) {
+  return a.x < b.x + b.size &&
+         a.x + a.size > b.x &&
+         a.y < b.y + b.size &&
+         a.y + a.size > b.y;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background elements
+  ctx.fillStyle = "#2e8b57";
+  ctx.fillRect(0, 410, canvas.width, 90);
+
+  ctx.fillStyle = "#5a3d2b";
+  ctx.fillRect(100, 330, 80, 80);
+  ctx.fillRect(450, 340, 110, 70);
+
+  ctx.fillStyle = "#7fe3ff";
+  ctx.beginPath();
+  ctx.arc(300, 120, 50, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Gem
+  ctx.fillStyle = "gold";
+  ctx.beginPath();
+  ctx.moveTo(gem.x + 12, gem.y);
+  ctx.lineTo(gem.x + 24, gem.y + 12);
+  ctx.lineTo(gem.x + 12, gem.y + 24);
+  ctx.lineTo(gem.x, gem.y + 12);
+  ctx.closePath();
+  ctx.fill();
+
+  // Player
+  ctx.fillStyle = "#5ee6ff";
+  ctx.fillRect(player.x, player.y, player.size, player.size);
+  ctx.fillStyle = "#1b3b4d";
+  ctx.fillRect(player.x + 7, player.y + 8, 5, 5);
+  ctx.fillRect(player.x + 19, player.y + 8, 5, 5);
+
+  // Enemies
+  enemies.forEach(enemy => {
+    ctx.fillStyle = "purple";
+    ctx.beginPath();
+    ctx.arc(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, enemy.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "white";
+    ctx.fillRect(enemy.x + 7, enemy.y + 8, 4, 4);
+    ctx.fillRect(enemy.x + 15, enemy.y + 8, 4, 4);
+  });
+
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Level: " + level, 20, 35);
+  ctx.fillText("Find the gold gemstone", 20, 60);
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+// Calm copyright-free style music generated inside the browser using Web Audio.
+// No outside audio file is needed.
+let audioCtx;
+let masterGain;
+let oscillators = [];
+
+function startMusic() {
+  if (musicStarted) return;
+  musicStarted = true;
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = muted ? 0 : 0.12;
+  masterGain.connect(audioCtx.destination);
+
+  const notes = [261.63, 329.63, 392.00, 523.25]; // soft C major tones
+
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = freq / (i === 3 ? 2 : 1);
+
+    gain.gain.value = 0.03;
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start();
+
+    oscillators.push(osc);
+  });
+
+  // Gentle repeating bell tone
+  setInterval(() => {
+    if (!audioCtx || muted) return;
+    const bell = audioCtx.createOscillator();
+    const bellGain = audioCtx.createGain();
+    bell.type = "triangle";
+    bell.frequency.value = [523.25, 587.33, 659.25, 783.99][Math.floor(Math.random() * 4)];
+    bellGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    bellGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+    bell.connect(bellGain);
+    bellGain.connect(masterGain);
+    bell.start();
+    bell.stop(audioCtx.currentTime + 1.2);
+  }, 2200);
+
+  document.getElementById("startBtn").innerText = "Music Started";
+}
+
+document.getElementById("startBtn").addEventListener("click", startMusic);
+
+document.getElementById("muteBtn").addEventListener("click", () => {
+  muted = !muted;
+  document.getElementById("muteBtn").innerText = muted ? "Unmute" : "Mute";
+  if (masterGain) masterGain.gain.value = muted ? 0 : 0.12;
+});
+</script>
+</body>
+</html>
